@@ -65,9 +65,17 @@ def reflector_function(x, base_depth, shape):
         return base_depth + 0.0 * x  # fallback to flat
 
 
-def build_reflectors(x, shapes):
-    """Build multiple reflectors with user-selected shapes."""
-    base_depths = [400.0, 800.0, 1200.0, 1750.0]
+def build_reflectors(x, shapes, base_depths=None):
+    """Build multiple reflectors with user-selected shapes and user-provided base depths."""
+    # Default base depths if none provided
+    if base_depths is None:
+        base_depths = [400.0, 800.0, 1200.0, 1750.0]
+    # Ensure we have as many base depths as shapes (trim or pad with last value)
+    if len(base_depths) < len(shapes):
+        base_depths = list(base_depths) + [base_depths[-1]] * (len(shapes) - len(base_depths))
+    elif len(base_depths) > len(shapes):
+        base_depths = list(base_depths)[:len(shapes)]
+
     reflectors = []
     for i, shape in enumerate(shapes):
         reflectors.append(reflector_function(x, base_depths[i], shape))
@@ -168,6 +176,20 @@ def main():
         )
         reflector_shapes.append(shape)
 
+    # New: allow user to set base depths for the reflectors
+    depths_input = st.sidebar.text_input("Reflector Base Depths (m) - comma separated",
+                                         "400,800,1200,1750")
+    try:
+        base_depths = [float(d.strip()) for d in depths_input.split(",") if d.strip() != ""]
+    except ValueError:
+        st.sidebar.warning("Invalid depths; using defaults.")
+        base_depths = [400.0, 800.0, 1200.0, 1750.0]
+
+    # Warn if mismatch in count
+    if len(base_depths) != len(reflector_shapes):
+        st.sidebar.warning(f"Number of depths ({len(base_depths)}) != number of reflectors ({len(reflector_shapes)}). "
+                           "Depths will be trimmed or repeated to match reflectors.")
+
     GRID = Grid()
     TS = TimeSampling()
     WAV = Wavelet(f_dom=f_dom)
@@ -177,7 +199,7 @@ def main():
     z = np.arange(0.0, GRID.z_max + GRID.dz, GRID.dz)
     nx, nz = x.size, z.size
 
-    reflectors = build_reflectors(x, reflector_shapes)
+    reflectors = build_reflectors(x, reflector_shapes, base_depths=base_depths)
     v = assign_velocity_model(x, z, reflectors, LAY.velocities)
 
     nt = int(np.floor(TS.t_max / TS.dt)) + 1
