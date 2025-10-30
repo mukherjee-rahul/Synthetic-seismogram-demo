@@ -1,7 +1,10 @@
 matplotlib==3.10.7
+numpy==2.3.4
+streamlit==1.51.0
 munkres==1.1.4
 pyarrow==21.0.0
 PySide6==6.9.3
 shiboken6==6.9.3
 zstandard==0.25.0
+
 
